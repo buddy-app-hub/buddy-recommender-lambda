@@ -107,7 +107,15 @@ def calculate_matching_score(elder, buddy):
 
     location_score = calculate_score_by_location(elder, buddy)
 
-    return 0.25 * interests_score + 0.25 * location_score
+    availability_score = calculate_score_by_availability(elder, buddy)
+
+    rating_score = calculate_score_by_rating(buddy)
+
+    final_score = 0.25 * interests_score + 0.15 * location_score + 0.45 * availability_score + 0.15 * rating_score
+
+    print(f"Final score: {final_score}")
+
+    return final_score
 
 
 
@@ -135,5 +143,88 @@ def calculate_score_by_location(elder, buddy):
 
     print(f"Elder's max distanance: {elder.max_distance_km}. Buddy distance to elder: {buddy.distance_to_elder}")
     print(f"Score by location: {score}")
+
+    return score
+
+
+def calculate_score_by_availability(elder, buddy):
+    elder_availability = elder.availability
+    buddy_availability = buddy.availability
+
+    print(elder_availability)
+    print(buddy_availability)
+
+    days_of_week = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"]
+    
+    total_hours = 119  # Total de horas de 7 am a 12 am en la semana
+    total_score = 0  # Score total de disponibilidad
+    
+    # Convertimos las disponibilidades en diccionarios por día para facilitar el acceso
+    elder_schedule = {day: [] for day in days_of_week}
+    buddy_schedule = {day: [] for day in days_of_week}
+
+    for slot in elder_availability:
+        elder_schedule[slot['dayOfWeek']].append((slot['from'], slot['to']))
+
+    for slot in buddy_availability:
+        buddy_schedule[slot['dayOfWeek']].append((slot['from'], slot['to']))
+
+    print(elder_schedule)
+    print(buddy_schedule)
+
+    # Evaluamos la disponibilidad por día
+    for day in days_of_week:
+        elder_times = elder_schedule[day]
+        buddy_times = buddy_schedule[day]
+        daily_score = 0  # Score diario para el día actual
+
+        print(day)
+
+        for e_from, e_to in elder_times:
+            for b_from, b_to in buddy_times:
+                # Calculamos la superposición
+                overlap_start = max(e_from, b_from)
+                overlap_end = min(e_to, b_to)
+
+                if overlap_start < overlap_end:
+                    # Hay una superposición directa
+                    daily_score += (overlap_end - overlap_start) / 100  # Normalizamos a la escala de horas
+
+                else:
+                    # Verificamos el desfase
+                    if b_from <= e_to + 200 and b_to >= e_from - 200:  # Desfase máximo de 2 horas
+                        # Calculamos la cantidad de horas de diferencia
+                        difference = 0
+                        if e_from < b_from:
+                            difference = (b_from - e_to) / 100  # Horas de desfase positivo
+                        else:
+                            difference = (e_from - b_to) / 100  # Horas de desfase positivo
+
+                        if difference <= 2:  # Si la diferencia es menor o igual a 2
+                            daily_score += (2 - difference) / 2  # Normalizamos entre 0 y 2
+
+        total_score += daily_score
+
+    # Normalizamos el score total entre 0 y 1
+    normalized_score = total_score / total_hours
+    # TODO: usar alguna funcion exponencial inversa que crezca rapido
+
+    print(f"Score by availability: {normalized_score}")
+
+    return normalized_score
+
+
+def calculate_score_by_rating(buddy):
+    MAX_RATING = 5
+    DEFAULT_RATING = 4 # Si no hay rating todavia
+
+    if (buddy.global_rating):
+        rating = buddy.global_rating
+    else:
+        rating = DEFAULT_RATING
+
+    score = rating / MAX_RATING * 100
+
+    print(f"Score by rating: {score}")
 
     return score
