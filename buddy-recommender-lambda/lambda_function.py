@@ -3,6 +3,8 @@ import requests
 import dns.resolver
 import random
 
+from models import Elder, Buddy
+
 def lambda_handler(event, context):
     api_key = os.getenv('BACKEND_API_KEY_FOR_LAMBDA')
 
@@ -38,18 +40,17 @@ def lambda_handler(event, context):
             elder = make_api_request(f"http://{target}:{port}/elders/{elder_id}", api_key)
             
             # Extraemos los datos relevantes del elder
-            get_relevant_elder_data(elder)
+            elder_data = get_relevant_elder_data(elder)
             
             # Obtengo los buddies dentro del radio de preferencia del elder (donde el elder tambien este dentro del radio de preferencia de los buddies)
             buddies = make_api_request(f"http://{target}:{port}/elders/{elder_id}/buddies", api_key)
             
-            print(buddies)
+            for buddy in buddies:
+                buddy_data = get_relevant_buddy_data(buddy)
 
-            results.append({
-                'elder_id': elder_id,
-                'statusCode': 200,
-                'buddies': buddies
-            })
+                buddy_score = calculate_matching_score(elder_data, buddy_data)
+
+            
 
         except Exception as e:
             print(f'Unexpected error: {e}')
@@ -74,19 +75,47 @@ def make_api_request(api_url, api_key):
     except requests.exceptions.RequestException as e:
         raise Exception(f"Request error: {str(e)}")
 
+
 def get_relevant_elder_data(elder):
-    elder_max_distance_km = elder['elderProfile']['connectionPreferences']['maxDistanceKM']
+    max_distance_km = elder['elderProfile']['connectionPreferences']['maxDistanceKM']
+    interests = {interest['name']: True for interest in elder['elderProfile']['interests']}
+    availability = elder['elderProfile']['availability']
+    
+    elder_instance = Elder(max_distance_km, interests, availability)
+    
+    print(elder_instance)
+    
+    return elder_instance
 
-    # Intereses como diccionario (asignar valor True por defecto a cada interés para luego compararlos fácilmente)
-    elder_interests = {interest['name']: True for interest in elder['elderProfile']['interests']}
 
-    # Disponibilidad
-    elder_availability = elder['elderProfile']['availability']
+def get_relevant_buddy_data(buddy):
+    max_distance_km = buddy['buddy']['buddyProfile']['connectionPreferences']['maxDistanceKM']
+    interests = {interest['name']: True for interest in buddy['buddy']['buddyProfile']['interests']}
+    availability = buddy['buddy']['buddyProfile']['availability']
+    global_rating = buddy['buddy']['buddyProfile']['globalRating']
+    distance_to_elder = buddy['distanceToKM']
+    
+    buddy_instance = Buddy(max_distance_km, interests, availability, global_rating, distance_to_elder)
+    
+    print(buddy_instance)
+    
+    return buddy_instance
 
-    # Mostrar lo extraído
-    print(f'Max Distance (KM): {elder_max_distance_km}')
-    print(f'Interests: {elder_interests}')
-    print(f'Availability: {elder_availability}')
 
-    return elder_max_distance_km, elder_interests, elder_availability
+def calculate_matching_score(elder, buddy):
+    elder_interests = elder.interests
+    buddy_interests = buddy.interests
+
+    common_interests = [interest for interest in elder_interests if interest in buddy_interests]
+
+    # Calculamos el score como la cantidad de intereses en comun sobre la cantidad total de intereses del elder
+    if len(elder_interests) == 0:
+        return 0
+
+    matching_score = (len(common_interests) / len(elder_interests)) * 100
+
+    print(f"Intereses en común: {common_interests}")
+    print(f"Matching score: {matching_score}")
+
+    return matching_score
 
