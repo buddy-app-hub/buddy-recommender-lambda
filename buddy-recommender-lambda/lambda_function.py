@@ -103,6 +103,15 @@ def get_relevant_buddy_data(buddy):
 
 
 def calculate_matching_score(elder, buddy):
+    interests_score = calculate_score_by_interests(elder, buddy)
+
+    location_score = calculate_score_by_location(elder, buddy)
+
+    return 0.25 * interests_score + 0.25 * location_score
+
+
+
+def calculate_score_by_interests(elder, buddy):
     elder_interests = elder.interests
     buddy_interests = buddy.interests
 
@@ -112,10 +121,19 @@ def calculate_matching_score(elder, buddy):
     if len(elder_interests) == 0:
         return 0
 
-    matching_score = (len(common_interests) / len(elder_interests)) * 100
+    score = (len(common_interests) / len(elder_interests)) * 100
 
-    print(f"Intereses en común: {common_interests}")
-    print(f"Matching score: {matching_score}")
+    print(f"Interests in common: {common_interests}")
+    print(f"Score by interests: {score}")
 
-    return matching_score
+    return score
 
+
+def calculate_score_by_location(elder, buddy):
+    # Calculamos el score en funcion de cuan lejos esta el buddy del elder en cuanto a la distancia maxima que seteo como parametro el elder
+    score = (elder.max_distance_km - buddy.distance_to_elder) / elder.max_distance_km * 100
+
+    print(f"Elder's max distanance: {elder.max_distance_km}. Buddy distance to elder: {buddy.distance_to_elder}")
+    print(f"Score by location: {score}")
+
+    return score
