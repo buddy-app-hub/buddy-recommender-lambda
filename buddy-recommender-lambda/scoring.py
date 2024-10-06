@@ -86,8 +86,6 @@ def calculate_score_by_availability(elder, buddy):
         buddy_times = buddy_schedule[day]
         daily_score = 0
 
-        print(day)
-
         for e_from, e_to in elder_times:
             for b_from, b_to in buddy_times:
                 # Calculamos la superposicion
