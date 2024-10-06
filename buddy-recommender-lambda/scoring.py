@@ -1,7 +1,26 @@
 import math
 
+# Deben sumar 1
+CHEMISTRY_WEIGHT = 0.25
+LOCATION_WEIGHT = 0.15
+AVAILABILITY_WEIGHT = 0.45
+RATING_WEIGHT = 0.15
+
+TOTAL_WEEK_HOURS_FOR_MEETINGS = 119  # Total de horas de 7 am a 12 am en la semana
+
+MAX_RATING = 5
+DEFAULT_RATING = 4 # Si no hay rating todavia
+
+DAYS_OF_WEEK = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"]
+
+# La cantidad de horas que permitimos para considerar horas cercanas como parcialmente coincidentes, incluso si no se superponen
+# Ej. dia lunes: buddy puede de 2 a 4 y el elder de 5 a 8. No se superponen por 1 hora, que como es menor al TOLERANCE_HOURS, suma TOLERANCE_HOURS - desfasaje al score
+TOLERANCE_HOURS = 2 
+
+
+# Calcula un matching score de 0 a 100 entre el buddy y el elder, ponderando distintos aspectos
 def calculate_matching_score(elder, buddy):
-    interests_score = calculate_score_by_interests(elder, buddy)
+    chemistry_score = calculate_score_by_chemistry(elder, buddy)
 
     location_score = calculate_score_by_location(elder, buddy)
 
@@ -9,15 +28,15 @@ def calculate_matching_score(elder, buddy):
 
     rating_score = calculate_score_by_rating(buddy)
 
-    final_score = 0.25 * interests_score + 0.15 * location_score + 0.45 * availability_score + 0.15 * rating_score
+    final_score = CHEMISTRY_WEIGHT * chemistry_score + LOCATION_WEIGHT * location_score + AVAILABILITY_WEIGHT * availability_score + RATING_WEIGHT * rating_score
 
     print(f"Final score: {final_score}")
 
     return final_score
 
 
-
-def calculate_score_by_interests(elder, buddy):
+# Chemistry define cuan bien ambas personas se podrian llevar en base a sus personalidades. Por el momento, solo se toman en cuenta los intereses en comun
+def calculate_score_by_chemistry(elder, buddy):
     elder_interests = elder.interests
     buddy_interests = buddy.interests
 
@@ -30,13 +49,13 @@ def calculate_score_by_interests(elder, buddy):
     score = (len(common_interests) / len(elder_interests)) * 100
 
     print(f"Interests in common: {common_interests}")
-    print(f"Score by interests: {score}")
+    print(f"Score by chemistry: {score}")
 
     return score
 
 
+# Calculamos el score en funcion de cuan lejos esta el buddy del elder en cuanto a la distancia maxima que seteo como parametro el elder
 def calculate_score_by_location(elder, buddy):
-    # Calculamos el score en funcion de cuan lejos esta el buddy del elder en cuanto a la distancia maxima que seteo como parametro el elder
     score = (elder.max_distance_km - buddy.distance_to_elder) / elder.max_distance_km * 100
 
     print(f"Elder's max distanance: {elder.max_distance_km}. Buddy distance to elder: {buddy.distance_to_elder}")
@@ -45,48 +64,39 @@ def calculate_score_by_location(elder, buddy):
     return score
 
 
+# Calcula un score para la disponibilidad horaria en base a cuantas horas tienen en comun en la semana sus tiempos libres. Si no coinciden por menos de 2 horas, igual se da un score bajo para ser menos estrictos
 def calculate_score_by_availability(elder, buddy):
-    elder_availability = elder.availability
-    buddy_availability = buddy.availability
-
-    print(elder_availability)
-    print(buddy_availability)
-
-    days_of_week = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"]
+    total_score = 0
     
-    total_hours = 119  # Total de horas de 7 am a 12 am en la semana
-    total_score = 0  # Score total de disponibilidad
-    
-    # Convertimos las disponibilidades en diccionarios por día para facilitar el acceso
-    elder_schedule = {day: [] for day in days_of_week}
-    buddy_schedule = {day: [] for day in days_of_week}
+    elder_schedule = {day: [] for day in DAYS_OF_WEEK}
+    buddy_schedule = {day: [] for day in DAYS_OF_WEEK}
 
-    for slot in elder_availability:
+    for slot in elder.availability:
         elder_schedule[slot['dayOfWeek']].append((slot['from'], slot['to']))
 
-    for slot in buddy_availability:
+    for slot in buddy.availability:
         buddy_schedule[slot['dayOfWeek']].append((slot['from'], slot['to']))
 
     print(elder_schedule)
     print(buddy_schedule)
 
     # Evaluamos la disponibilidad por día
-    for day in days_of_week:
+    for day in DAYS_OF_WEEK:
         elder_times = elder_schedule[day]
         buddy_times = buddy_schedule[day]
-        daily_score = 0  # Score diario para el día actual
+        daily_score = 0
 
         print(day)
 
         for e_from, e_to in elder_times:
             for b_from, b_to in buddy_times:
-                # Calculamos la superposición
+                # Calculamos la superposicion
                 overlap_start = max(e_from, b_from)
                 overlap_end = min(e_to, b_to)
 
                 overlap = (overlap_end - overlap_start) / 100 # Normalizamos a la escala de horas
-                if overlap >= -2:
-                    daily_score += overlap + 2
+                if overlap >= - TOLERANCE_HOURS:
+                    daily_score += overlap + TOLERANCE_HOURS
 
         total_score += daily_score
 
@@ -100,9 +110,6 @@ def calculate_score_by_availability(elder, buddy):
 
 
 def calculate_score_by_rating(buddy):
-    MAX_RATING = 5
-    DEFAULT_RATING = 4 # Si no hay rating todavia
-
     if (buddy.global_rating):
         rating = buddy.global_rating
     else:
@@ -115,25 +122,17 @@ def calculate_score_by_rating(buddy):
     return score
 
 
-def fast_growth_score_exponential(total_hours_in_common, max_hours=119, L=100, k=15):
-    """
-    Calcula el score basado en una funcion exponencial controlada.
-    Crece rapido al principio y luego se desacelera.
-    
-    Args:
-        total_hours_in_common: El total de horas en comun entre elder y buddy.
-        max_hours: La cantidad maxima de horas posibles (119).
-        L: El valor limite superior para el score.
-        k: controla la velocidad de crecimiento.
-    
-    Returns:
-        Un score calculado entre 0 y 100.
-    """
+# Calcula el score entre 0 y 100 basado en una funcion exponencial controlada. Crece rapido al principio y luego se desacelera
+# La idea es que no necesiten tener muchisimas horas en comun para tener un score alto
+def fast_growth_score_exponential(total_hours_in_common):
+    L=100 # limite superior para el score
+    k=15 # controla la velocidad de crecimiento.
+
     if total_hours_in_common == 0:
         return 0
 
-    # # Normalizamos las horas totales entre 0 y 1 y aplicamos la funcion exponencial
-    normalized_hours = total_hours_in_common / max_hours
+    # Normalizamos las horas totales entre 0 y 1 y aplicamos la funcion exponencial
+    normalized_hours = total_hours_in_common / TOTAL_WEEK_HOURS_FOR_MEETINGS
     score = L * (1 - math.exp(-k * normalized_hours))
     
     return score
