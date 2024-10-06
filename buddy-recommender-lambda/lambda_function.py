@@ -2,6 +2,7 @@ import os
 import requests
 import dns.resolver
 import random
+import math
 
 from models import Elder, Buddy
 
@@ -186,32 +187,19 @@ def calculate_score_by_availability(elder, buddy):
                 overlap_start = max(e_from, b_from)
                 overlap_end = min(e_to, b_to)
 
-                if overlap_start < overlap_end:
-                    # Hay una superposición directa
-                    daily_score += (overlap_end - overlap_start) / 100  # Normalizamos a la escala de horas
-
-                else:
-                    # Verificamos el desfase
-                    if b_from <= e_to + 200 and b_to >= e_from - 200:  # Desfase máximo de 2 horas
-                        # Calculamos la cantidad de horas de diferencia
-                        difference = 0
-                        if e_from < b_from:
-                            difference = (b_from - e_to) / 100  # Horas de desfase positivo
-                        else:
-                            difference = (e_from - b_to) / 100  # Horas de desfase positivo
-
-                        if difference <= 2:  # Si la diferencia es menor o igual a 2
-                            daily_score += (2 - difference) / 2  # Normalizamos entre 0 y 2
+                overlap = (overlap_end - overlap_start) / 100 # Normalizamos a la escala de horas
+                if overlap >= -2:
+                    daily_score += overlap + 2
 
         total_score += daily_score
 
-    # Normalizamos el score total entre 0 y 1
-    normalized_score = total_score / total_hours
-    # TODO: usar alguna funcion exponencial inversa que crezca rapido
+    
+    score = fast_growth_score_exponential(total_score)
 
-    print(f"Score by availability: {normalized_score}")
+    print(f"Total score: {total_score}")
+    print(f"Score by availability: {score}")
 
-    return normalized_score
+    return score
 
 
 def calculate_score_by_rating(buddy):
@@ -227,4 +215,28 @@ def calculate_score_by_rating(buddy):
 
     print(f"Score by rating: {score}")
 
+    return score
+
+
+def fast_growth_score_exponential(total_hours_in_common, max_hours=119, L=100, k=15):
+    """
+    Calcula el score basado en una funcion exponencial controlada.
+    Crece rapido al principio y luego se desacelera.
+    
+    Args:
+        total_hours_in_common: El total de horas en comun entre elder y buddy.
+        max_hours: La cantidad maxima de horas posibles (119).
+        L: El valor limite superior para el score.
+        k: controla la velocidad de crecimiento.
+    
+    Returns:
+        Un score calculado entre 0 y 100.
+    """
+    if total_hours_in_common == 0:
+        return 0
+
+    # # Normalizamos las horas totales entre 0 y 1 y aplicamos la funcion exponencial
+    normalized_hours = total_hours_in_common / max_hours
+    score = L * (1 - math.exp(-k * normalized_hours))
+    
     return score
