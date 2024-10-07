@@ -5,8 +5,6 @@ import requests
 import dns.resolver
 import random
 
-sqs_client = boto3.client('sqs')
-
 def lambda_handler(event, context):
     queue_url = os.getenv('SQS_QUEUE_URL')
     api_key = os.getenv('BACKEND_API_KEY_FOR_LAMBDA')
@@ -16,6 +14,8 @@ def lambda_handler(event, context):
             'statusCode': 500,
             'body': 'Faltan variables de entorno'
         }
+    
+    sqs_client = boto3.client('sqs', endpoint_url=queue_url)
 
     # Realizamos una consulta DNS de tipo SRV para obtener la direccion del microservicio backend
     try:
@@ -30,15 +30,15 @@ def lambda_handler(event, context):
     srv_record = random.choice(answers) # Hacemos un random de todos los hosts devueltos para balancear la carga
     target = str(srv_record.target).rstrip('.')  # Nombre del host
     port = srv_record.port  # Puerto asociado
-    
+
     try:
         # Obtengo todos los elders del microservicio backend
         elders = make_get_api_request(f"http://{target}:{port}/elders", api_key)
     
-        if response.status_code != 200:
+        if not elders:
             return {
-                'statusCode': response.status_code,
-                'body': f"Error al consultar el microservicio: {response.text}"
+                'statusCode': 500,
+                'body': "Error al consultar el microservicio o la lista de elders está vacía"
             }
         
     except Exception as e:
@@ -46,7 +46,7 @@ def lambda_handler(event, context):
             'statusCode': 500,
             'body': f"Error al hacer el request a backend: {str(e)}"
         }
-    
+
     # Iteramos sobre los elders y encolamos el elder_id
     for elder in elders:
         elder_id = elder['firebaseUID']
@@ -54,7 +54,7 @@ def lambda_handler(event, context):
             # Encolamos el elder_id en el SQS
             response = sqs_client.send_message(
                 QueueUrl=queue_url,
-                MessageBody=json.dumps(elder_id)
+                MessageBody=elder_id
             )
             print(f"Elder encolado con elder_id: {elder_id}, MessageId: {response['MessageId']}")
             
