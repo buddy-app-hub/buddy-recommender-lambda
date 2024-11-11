@@ -1,10 +1,9 @@
 import math
 
 # Deben sumar 1
-CHEMISTRY_WEIGHT = 0.25
-LOCATION_WEIGHT = 0.15
-AVAILABILITY_WEIGHT = 0.45
-RATING_WEIGHT = 0.15
+CHEMISTRY_WEIGHT = 0.30
+LOCATION_WEIGHT = 0.30
+AVAILABILITY_WEIGHT = 0.40
 
 TOTAL_WEEK_HOURS_FOR_MEETINGS = 119  # Total de horas de 7 am a 12 am en la semana
 
@@ -18,7 +17,7 @@ DAYS_OF_WEEK = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "
 TOLERANCE_HOURS = 2 
 
 
-# Calcula un matching score de 0 a 100 entre el buddy y el elder, ponderando distintos aspectos
+# Calcula un matching score de 0 a 100 entre el buddy y el elder, ponderando distintos aspectos. El rating afecta el score general (es decir, el score final es el producto del score con rating/MAX_RATING)
 def calculate_matching_score(elder, buddy):
     chemistry_score = calculate_score_by_chemistry(elder, buddy)
 
@@ -28,7 +27,7 @@ def calculate_matching_score(elder, buddy):
 
     rating_score = calculate_score_by_rating(buddy)
 
-    final_score = CHEMISTRY_WEIGHT * chemistry_score + LOCATION_WEIGHT * location_score + AVAILABILITY_WEIGHT * availability_score + RATING_WEIGHT * rating_score
+    final_score = (CHEMISTRY_WEIGHT * chemistry_score + LOCATION_WEIGHT * location_score + AVAILABILITY_WEIGHT * availability_score) * rating_score
 
     print(f"Final score: {final_score}")
 
