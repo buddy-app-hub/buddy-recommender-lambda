@@ -112,7 +112,7 @@ def calculate_score_by_rating(buddy):
     else:
         rating = DEFAULT_RATING
 
-    score = rating / MAX_RATING * 100
+    score = rating / MAX_RATING
 
     print(f"Score by rating: {score}")
 
