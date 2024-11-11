@@ -10,7 +10,7 @@ TOTAL_WEEK_HOURS_FOR_MEETINGS = 119  # Total de horas de 7 am a 12 am en la sema
 MAX_RATING = 5
 DEFAULT_RATING = 4 # Si no hay rating todavia
 
-DAYS_OF_WEEK = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"]
+DAYS_OF_WEEK = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
 # La cantidad de horas que permitimos para considerar horas cercanas como parcialmente coincidentes, incluso si no se superponen
 # Ej. dia lunes: buddy puede de 2 a 4 y el elder de 5 a 8. No se superponen por 1 hora, que como es menor al TOLERANCE_HOURS, suma TOLERANCE_HOURS - desfasaje al score
